@@ -224,8 +224,9 @@ export const optimizeJob = async (req: Request, res: Response, next: NextFunctio
 
         // 3. Persist results in a transaction
         await prisma.$transaction(async (tx) => {
-            // Clear existing results if any (re-optimizing)
+            // Clear existing results and offcuts for this job
             await tx.stockBar.deleteMany({ where: { jobId: jobId as string } });
+            await tx.offcut.deleteMany({ where: { sourceJobId: jobId as string } });
 
             for (const bar of results) {
                 const createdBar = await tx.stockBar.create({
@@ -246,6 +247,18 @@ export const optimizeJob = async (req: Request, res: Response, next: NextFunctio
                         lengthMm: p.lengthMm,
                     })),
                 });
+
+                // If not scrap, save as reusable offcut
+                if (!bar.isScrap && bar.remainingLengthMm > 0) {
+                    await tx.offcut.create({
+                        data: {
+                            diameterMm: bar.diameterMm,
+                            lengthMm: bar.remainingLengthMm,
+                            sourceJobId: jobId as string,
+                            status: 'AVAILABLE'
+                        }
+                    });
+                }
             }
 
             // Update job status
