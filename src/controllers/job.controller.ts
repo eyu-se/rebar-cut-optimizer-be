@@ -5,6 +5,19 @@ import { ffdAlgorithm } from '../utils/optimizationEngine.js';
 import { generateExcelReport } from '../services/export.service.js';
 
 
+// List all jobs for the current user
+export const getJobs = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = (req as any).user.userId;
+        const jobs = await prisma.job.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+        });
+        res.json(jobs);
+    } catch (error) {
+        next(error);
+    }
+};
 
 // Create a new job
 export const createJob = async (req: Request, res: Response, next: NextFunction) => {
