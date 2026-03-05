@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getWasteTrend, getWasteByDiameter, getUsageByProject } from '../controllers/report.controller.js';
+import { getWasteTrend, getWasteByDiameter, getUsageByProject, getDashboardStats } from '../controllers/report.controller.js';
 import { authenticateJWT } from '../middleware/auth.middleware.js';
 
 const router = Router();
@@ -48,5 +48,19 @@ router.get('/waste-by-diameter', getWasteByDiameter);
  *         description: Usage by project report
  */
 router.get('/usage-by-project', getUsageByProject);
+
+/**
+ * @openapi
+ * /api/reports/dashboard-stats:
+ *   get:
+ *     summary: Get aggregated stats for the dashboard
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard statistics
+ */
+router.get('/dashboard-stats', getDashboardStats);
 
 export default router;

@@ -122,3 +122,43 @@ export const getUsageByProject = async (req: Request, res: Response, next: NextF
         next(error);
     }
 };
+
+/**
+ * Get aggregated stats for the dashboard.
+ */
+export const getDashboardStats = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = (req as any).user.userId;
+
+        const jobs = await prisma.job.findMany({
+            where: { userId },
+            include: { stockBars: true }
+        });
+
+        const totalJobs = jobs.length;
+        let totalBars = 0;
+        let totalScrap = 0;
+        let totalStockLength = 0;
+
+        jobs.forEach(job => {
+            totalBars += job.stockBars.length;
+            job.stockBars.forEach(bar => {
+                totalStockLength += bar.totalLengthMm;
+                if (bar.isScrap) {
+                    totalScrap += bar.remainingLengthMm;
+                }
+            });
+        });
+
+        const avgWastePercent = totalStockLength > 0 ? (totalScrap / totalStockLength) * 100 : 0;
+
+        res.json({
+            totalJobs,
+            totalBars,
+            totalScrap,
+            avgWastePercent: Number(avgWastePercent.toFixed(2))
+        });
+    } catch (error) {
+        next(error);
+    }
+};
