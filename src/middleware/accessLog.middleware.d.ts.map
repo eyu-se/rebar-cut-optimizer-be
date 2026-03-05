@@ -1,0 +1,1 @@
+{"version":3,"file":"accessLog.middleware.d.ts","sourceRoot":"","sources":["accessLog.middleware.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,QAAQ,EAAE,YAAY,EAAE,MAAM,SAAS,CAAC;AACtD,OAAO,KAAK,EAAE,WAAW,EAAE,MAAM,sBAAsB,CAAC;AAGxD,eAAO,MAAM,SAAS,GAAI,QAAQ,MAAM,MACtB,KAAK,WAAW,EAAE,KAAK,QAAQ,EAAE,MAAM,YAAY,kBAkBpE,CAAC"}
