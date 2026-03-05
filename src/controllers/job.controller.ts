@@ -284,14 +284,18 @@ export const exportJobExcel = async (req: Request, res: Response, next: NextFunc
             where: { id: jobId as string },
             include: {
                 stockBars: {
-                    include: { cutPieces: true }
+                    include: {
+                        cutPieces: {
+                            include: { requirement: true }
+                        }
+                    }
                 }
             }
         });
 
         if (!job) return res.status(404).json({ error: 'Job not found' });
 
-        const buffer = generateExcelReport(job.name, (job as any).stockBars);
+        const buffer = generateExcelReport(job.name, job.projectName, job.createdAt, (job as any).stockBars);
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename=Fabrication_Report_${job.name}.xlsx`);
