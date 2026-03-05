@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { createJob, uploadRequirements, getJobSummary, getJobPatterns, optimizeJob, } from '../controllers/job.controller.js';
+import { createJob, uploadRequirements, getJobSummary, getJobPatterns, optimizeJob, exportJobExcel, } from '../controllers/job.controller.js';
 import { authenticateJWT } from '../middleware/auth.middleware.js';
 const router = Router();
 const upload = multer({ dest: 'uploads/' }); // temporary storage
@@ -117,5 +117,29 @@ router.get('/:id/patterns', getJobPatterns);
  *         description: Optimization completed
  */
 router.post('/:id/optimize', optimizeJob);
+/**
+ * @openapi
+ * /api/jobs/{id}/export/excel:
+ *   get:
+ *     summary: Export job fabrication report to Excel
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Excel file buffer
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ */
+router.get('/:id/export/excel', exportJobExcel);
 export default router;
 //# sourceMappingURL=job.routes.js.map
