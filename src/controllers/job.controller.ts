@@ -19,6 +19,30 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
     }
 };
 
+// Get a single job by ID
+export const getJobById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const jobId = req.params.id;
+        const userId = (req as any).user.userId;
+        const job = await prisma.job.findUnique({
+            where: { id: jobId as string },
+        });
+
+        if (!job) {
+            return res.status(404).json({ error: 'Job not found' });
+        }
+
+        // Security check: ensure the job belongs to the current user
+        if (job.userId !== userId) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
+        res.json(job);
+    } catch (error) {
+        next(error);
+    }
+};
+
 // Create a new job
 export const createJob = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -68,12 +92,28 @@ export const uploadRequirements = async (req: Request, res: Response, next: Next
 export const getJobSummary = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const jobId = req.params.id;
-        const stockBars = await prisma.stockBar.findMany({
-            where: { jobId: jobId as string },
+        const job = await prisma.job.findUnique({
+            where: { id: jobId as string },
+            include: {
+                stockBars: true
+            }
         });
 
+        if (!job) {
+            return res.status(404).json({ error: 'Job not found' });
+        }
+
+        const stockBars = job.stockBars;
+
         if (stockBars.length === 0) {
-            return res.status(200).json({ totalBars: 0, totalScrap: 0, wastePercent: 0, totalOffcuts: 0 });
+            return res.status(200).json({
+                jobName: job.name,
+                stockLengthMm: job.stockLengthMm,
+                totalBars: 0,
+                totalScrap: 0,
+                wastePercent: 0,
+                totalOffcuts: 0
+            });
         }
 
         const totalBars = stockBars.length;
@@ -83,15 +123,24 @@ export const getJobSummary = async (req: Request, res: Response, next: NextFunct
         // Sum of all total length of bars used
         const totalStockLength = stockBars.reduce((sum, b) => sum + b.totalLengthMm, 0);
         const wastePercent = (totalScrap / totalStockLength) * 100;
+        const efficiency = 100 - wastePercent;
 
-        res.json({ totalBars, totalScrap, totalOffcuts, wastePercent });
+        res.json({
+            jobName: job.name,
+            stockLengthMm: job.stockLengthMm,
+            totalBars,
+            totalScrap,
+            totalOffcuts,
+            wastePercent: wastePercent.toFixed(2),
+            efficiency: efficiency.toFixed(2)
+        });
     } catch (error) {
         next(error);
     }
 };
 
 
-// Get detailed cut patterns
+// Get detailed cut patterns grouped by diameter
 export const getJobPatterns = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const jobId = req.params.id;
@@ -105,7 +154,49 @@ export const getJobPatterns = async (req: Request, res: Response, next: NextFunc
                 }
             },
         });
-        res.json(stockBars);
+
+        // Group by diameter
+        const groups: Record<number, any> = {};
+
+        for (const bar of stockBars) {
+            if (!groups[bar.diameterMm]) {
+                groups[bar.diameterMm] = {
+                    diameterMm: bar.diameterMm,
+                    stockBarsUsed: 0,
+                    totalScrap: 0,
+                    totalStockLength: 0,
+                    patterns: []
+                };
+            }
+
+            const g = groups[bar.diameterMm];
+            g.stockBarsUsed++;
+            if (bar.isScrap) {
+                g.totalScrap += bar.remainingLengthMm;
+            }
+            g.totalStockLength += bar.totalLengthMm;
+
+            g.patterns.push({
+                barId: bar.id,
+                scrap: bar.remainingLengthMm,
+                totalLengthMm: bar.totalLengthMm,
+                isScrap: bar.isScrap,
+                cuts: bar.cutPieces.map(cp => ({
+                    id: cp.id,
+                    length: cp.lengthMm,
+                    quantity: 1,
+                    location: cp.requirement.location
+                }))
+            });
+        }
+
+        // Finalize waste percent and convert to array
+        const result = Object.values(groups).map(g => ({
+            ...g,
+            wastePercent: g.totalStockLength > 0 ? ((g.totalScrap / g.totalStockLength) * 100).toFixed(2) : 0
+        }));
+
+        res.json(result);
     } catch (error) {
         next(error);
     }

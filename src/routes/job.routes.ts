@@ -3,6 +3,7 @@ import multer from 'multer';
 import {
     createJob,
     getJobs,
+    getJobById,
     uploadRequirements,
     getJobSummary,
     getJobPatterns,
@@ -31,6 +32,28 @@ router.use(authenticateJWT);
  *         description: List of jobs
  */
 router.get('/', getJobs);
+
+/**
+ * @openapi
+ * /api/jobs/{id}:
+ *   get:
+ *     summary: Get a single job by ID
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Job details
+ *       404:
+ *         description: Job not found
+ */
+router.get('/:id', getJobById);
 
 /**
  * @openapi
