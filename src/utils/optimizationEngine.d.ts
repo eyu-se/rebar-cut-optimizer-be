@@ -23,4 +23,10 @@ export interface CutResult {
  * @param minOffcutToSaveMm Minimum length to consider as a reusable offcut instead of scrap
  */
 export declare const ffdAlgorithm: (requirements: Requirement[], stockLengthMm?: number, minOffcutToSaveMm?: number) => CutResult[];
+/**
+ * Local Search refinement to improve the FFD solution.
+ * Focuses on moving pieces from sparsely populated bars to others
+ * to reduce the total number of stock bars.
+ */
+export declare const localSearchSwap: (results: CutResult[], minOffcutToSaveMm?: number) => CutResult[];
 //# sourceMappingURL=optimizationEngine.d.ts.map

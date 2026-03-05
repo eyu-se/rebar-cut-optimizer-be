@@ -78,8 +78,73 @@ export const ffdAlgorithm = (
             bar.isScrap = bar.remainingLengthMm < minOffcutToSaveMm;
         });
 
-        results.push(...stockBars);
+        // 3. Local Search Refinement (Swap/Move pieces to minimize bars)
+        const refinedBars = localSearchSwap(stockBars, minOffcutToSaveMm);
+
+        results.push(...refinedBars);
     });
 
     return results;
 };
+
+/**
+ * Local Search refinement to improve the FFD solution.
+ * Focuses on moving pieces from sparsely populated bars to others 
+ * to reduce the total number of stock bars.
+ */
+export const localSearchSwap = (
+    results: CutResult[],
+    minOffcutToSaveMm: number = 500
+): CutResult[] => {
+    let improved = true;
+    let currentResults = JSON.parse(JSON.stringify(results)) as CutResult[];
+
+    let iterations = 0;
+    while (improved && iterations < 100) {
+        improved = false;
+        iterations++;
+
+        // Sort by remaining length descending (try to empty the bars with most space)
+        currentResults.sort((a, b) => b.remainingLengthMm - a.remainingLengthMm);
+
+        for (let i = 0; i < currentResults.length; i++) {
+            const barFrom = currentResults[i]!;
+
+            for (let j = currentResults.length - 1; j > i; j--) {
+                const barTo = currentResults[j]!;
+
+                // Try to move each piece from barFrom to barTo
+                for (let k = 0; k < barFrom.pieces.length; k++) {
+                    const piece = barFrom.pieces[k]!;
+                    if (barTo.remainingLengthMm >= piece.lengthMm) {
+                        // Move piece
+                        barTo.pieces.push(piece);
+                        barTo.remainingLengthMm -= piece.lengthMm;
+                        barFrom.pieces.splice(k, 1);
+                        barFrom.remainingLengthMm += piece.lengthMm;
+
+                        improved = true;
+                        break;
+                    }
+                }
+                if (improved) break;
+            }
+
+            // If barFrom is empty, remove it
+            if (barFrom.pieces.length === 0) {
+                currentResults.splice(i, 1);
+                improved = true;
+                break;
+            }
+            if (improved) break;
+        }
+    }
+
+    // Recalculate isScrap
+    currentResults.forEach(bar => {
+        bar.isScrap = bar.remainingLengthMm < minOffcutToSaveMm;
+    });
+
+    return currentResults;
+};
+
