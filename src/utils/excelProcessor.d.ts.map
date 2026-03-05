@@ -1,1 +1,1 @@
-{"version":3,"file":"excelProcessor.d.ts","sourceRoot":"","sources":["excelProcessor.ts"],"names":[],"mappings":"AAKA;;;GAGG;AACH,eAAO,MAAM,gBAAgB,GAAU,UAAU,MAAM;;;;;IA2BtD,CAAC"}
+{"version":3,"file":"excelProcessor.d.ts","sourceRoot":"","sources":["excelProcessor.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,IAAI,MAAM,MAAM,CAAC;AAG7B;;;;;;GAMG;AACH,eAAO,MAAM,qBAAqB,GAAU,OAAO,IAAI,CAAC,SAAS;;;;;IAoChE,CAAC;AAEF,eAAO,MAAM,gBAAgB,GAAU,UAAU,MAAM;;;;;IAwBtD,CAAC"}

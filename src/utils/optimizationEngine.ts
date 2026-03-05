@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 export interface Requirement {
     id: string;
     diameterMm: number;

@@ -1,33 +1,69 @@
 import * as XLSX from 'xlsx';
-import * as fs from 'fs';
-XLSX.set_fs(fs);
+import fs from 'fs';
 /**
- * Process an uploaded Excel or CSV file and return an array of rebar requirements.
- * Each requirement includes: diameterMm, requiredLengthMm, quantity, location.
+ * Specialized parser for the user's specific BBS format.
+ * location = Col B (Location) + Col C (Type)
+ * diameterMm = Col D (Dia)
+ * requiredLengthMm = Col E (Length) -> convert to mm
+ * quantity = Col K (Total)
  */
+export const processSpecializedBBS = async (sheet) => {
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: "A", defval: '' });
+    // 1. Find the header row (searching for "Dia", "Length", etc. around row 13)
+    let headerRowIndex = -1;
+    for (let i = 0; i < Math.min(rows.length, 50); i++) {
+        const row = rows[i];
+        const combined = Object.values(row).join('|').toLowerCase();
+        if (combined.includes('dia') && combined.includes('length') && combined.includes('total')) {
+            headerRowIndex = i;
+            break;
+        }
+    }
+    if (headerRowIndex === -1) {
+        // Fallback to row 12 (0-indexed) if not found, as user mentioned row 13
+        headerRowIndex = 11;
+    }
+    const dataRows = rows.slice(headerRowIndex + 1);
+    return dataRows.map(row => {
+        const diameter = parseFloat(row['D']);
+        let length = parseFloat(row['E']);
+        let qty = parseFloat(row['K']);
+        // Heuristic: If length is small (e.g., < 100), it's likely in meters -> convert to mm
+        if (length > 0 && length < 100)
+            length *= 1000;
+        return {
+            diameterMm: diameter,
+            requiredLengthMm: Math.round(length),
+            quantity: Math.round(qty),
+            location: `${row['B']} ${row['C']}`.trim(),
+        };
+    }).filter(r => r.diameterMm > 0 && r.requiredLengthMm > 0 && r.quantity > 0);
+};
 export const processExcelFile = async (filePath) => {
-    // Read the file as a buffer
     const fileBuffer = fs.readFileSync(filePath);
-    // Parse the workbook (supports .xlsx, .xls, .csv)
     const workbook = XLSX.read(fileBuffer);
-    // Assume the first sheet contains the data
     const sheetName = workbook.SheetNames[0];
-    if (!sheetName) {
-        throw new Error('No sheets found in Excel file');
-    }
+    if (!sheetName)
+        throw new Error('No sheets found');
     const sheet = workbook.Sheets[sheetName];
-    if (!sheet) {
+    if (!sheet)
         throw new Error(`Sheet ${sheetName} not found`);
+    // Try specialized parser first
+    try {
+        const specialized = await processSpecializedBBS(sheet);
+        if (specialized.length > 0)
+            return specialized;
     }
-    // Convert sheet to JSON rows
+    catch (e) {
+        console.warn('Specialized parsing failed, falling back to generic', e);
+    }
+    // Generic fallback
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-    // Map rows to the required shape; adjust column names as needed
-    // Assuming columns: Diameter / diameter, Length / length / requiredLength, Quantity / quantity, Location / location
     return rows.map(row => ({
         diameterMm: Number(row['Diameter'] || row['diameter'] || 0),
         requiredLengthMm: Number(row['Length'] || row['length'] || row['requiredLength'] || 0),
-        quantity: Number(row['Quantity'] || row['quantity'] || 1), // Default to 1 if not specified
+        quantity: Number(row['Quantity'] || row['quantity'] || 1),
         location: row['Location'] || row['location'] || '',
-    })).filter(r => r.diameterMm > 0 && r.requiredLengthMm > 0); // Filter out empty or invalid rows
+    })).filter(r => r.diameterMm > 0 && r.requiredLengthMm > 0);
 };
 //# sourceMappingURL=excelProcessor.js.map
