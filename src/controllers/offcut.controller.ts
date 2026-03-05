@@ -17,18 +17,32 @@ export const getOffcuts = async (req: Request, res: Response, next: NextFunction
             orderBy: { createdAt: 'desc' }
         });
 
-        // Map to format expected by FE
-        const formatted = offcuts.map(o => ({
-            id: o.id,
-            diameter: o.diameterMm,
-            length: o.lengthMm,
-            quantity: 1, // Currently saved as individual pieces
-            sourceJob: o.sourceJob?.name || 'Manual',
-            status: o.status === 'AVAILABLE' ? 'Available' : o.status === 'REUSED' ? 'Used' : 'Reserved',
-            createdDate: o.createdAt.toISOString().split('T')[0]
-        }));
+        // Group and sum quantities
+        const groupedMap = new Map<string, any>();
 
-        res.json(formatted);
+        offcuts.forEach(o => {
+            const sourceJobName = o.sourceJob?.name || 'Manual';
+            const key = `${o.diameterMm}-${o.lengthMm}-${sourceJobName}-${o.status}`;
+
+            if (groupedMap.has(key)) {
+                const existing = groupedMap.get(key);
+                existing.quantity += 1;
+                existing.ids.push(o.id);
+            } else {
+                groupedMap.set(key, {
+                    id: o.id, // Primary ID for keying in list
+                    ids: [o.id],
+                    diameter: o.diameterMm,
+                    length: o.lengthMm,
+                    quantity: 1,
+                    sourceJob: sourceJobName,
+                    status: o.status === 'AVAILABLE' ? 'Available' : o.status === 'REUSED' ? 'Used' : 'Reserved',
+                    createdDate: o.createdAt.toISOString().split('T')[0]
+                });
+            }
+        });
+
+        res.json(Array.from(groupedMap.values()));
     } catch (error) {
         next(error);
     }
@@ -39,9 +53,18 @@ export const getOffcuts = async (req: Request, res: Response, next: NextFunction
  */
 export const deleteOffcut = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { id } = req.params;
-        await prisma.offcut.delete({ where: { id } });
-        res.json({ message: 'Offcut deleted successfully' });
+        const idParam = req.params.id as string;
+        if (!idParam) return res.status(400).json({ error: 'ID required' });
+
+        const ids = idParam.split(',');
+
+        await prisma.offcut.deleteMany({
+            where: {
+                id: { in: ids }
+            }
+        });
+
+        res.json({ message: 'Offcut(s) deleted successfully' });
     } catch (error) {
         next(error);
     }
