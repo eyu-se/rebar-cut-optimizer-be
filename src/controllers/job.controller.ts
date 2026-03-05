@@ -46,11 +46,12 @@ export const getJobById = async (req: Request, res: Response, next: NextFunction
 // Create a new job
 export const createJob = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { name, stockLengthMm, minOffcutToSaveMm, allowOffcutReuse } = req.body;
+        const { name, projectName, stockLengthMm, minOffcutToSaveMm, allowOffcutReuse } = req.body;
         const userId = (req as any).user.userId;
         const job = await prisma.job.create({
             data: {
                 name,
+                projectName: projectName || null,
                 stockLengthMm: stockLengthMm ?? 12000,
                 minOffcutToSaveMm: minOffcutToSaveMm ?? 500,
                 allowOffcutReuse: allowOffcutReuse ?? true,
@@ -108,6 +109,7 @@ export const getJobSummary = async (req: Request, res: Response, next: NextFunct
         if (stockBars.length === 0) {
             return res.status(200).json({
                 jobName: job.name,
+                projectName: job.projectName,
                 stockLengthMm: job.stockLengthMm,
                 totalBars: 0,
                 totalScrap: 0,
@@ -127,6 +129,7 @@ export const getJobSummary = async (req: Request, res: Response, next: NextFunct
 
         res.json({
             jobName: job.name,
+            projectName: job.projectName,
             stockLengthMm: job.stockLengthMm,
             totalBars,
             totalScrap,
