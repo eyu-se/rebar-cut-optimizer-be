@@ -2,6 +2,20 @@ import prisma from '../utils/prisma.js';
 import { processExcelFile } from '../utils/excelProcessor.js';
 import { ffdAlgorithm } from '../utils/optimizationEngine.js';
 import { generateExcelReport } from '../services/export.service.js';
+// List all jobs for the current user
+export const getJobs = async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
+        const jobs = await prisma.job.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+        });
+        res.json(jobs);
+    }
+    catch (error) {
+        next(error);
+    }
+};
 // Create a new job
 export const createJob = async (req, res, next) => {
     try {

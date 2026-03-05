@@ -1,11 +1,15 @@
 import * as XLSX from 'xlsx';
+import * as fs from 'fs';
+XLSX.set_fs(fs);
 /**
  * Process an uploaded Excel or CSV file and return an array of rebar requirements.
  * Each requirement includes: diameterMm, requiredLengthMm, quantity, location.
  */
 export const processExcelFile = async (filePath) => {
-    // Read the workbook (supports .xlsx, .xls, .csv)
-    const workbook = XLSX.readFile(filePath);
+    // Read the file as a buffer
+    const fileBuffer = fs.readFileSync(filePath);
+    // Parse the workbook (supports .xlsx, .xls, .csv)
+    const workbook = XLSX.read(fileBuffer);
     // Assume the first sheet contains the data
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) {

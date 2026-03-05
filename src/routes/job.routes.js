@@ -1,11 +1,24 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { createJob, uploadRequirements, getJobSummary, getJobPatterns, optimizeJob, exportJobExcel, } from '../controllers/job.controller.js';
+import { createJob, getJobs, uploadRequirements, getJobSummary, getJobPatterns, optimizeJob, exportJobExcel, } from '../controllers/job.controller.js';
 import { authenticateJWT } from '../middleware/auth.middleware.js';
 const router = Router();
 const upload = multer({ dest: 'uploads/' }); // temporary storage
 // All job routes require authentication
 router.use(authenticateJWT);
+/**
+ * @openapi
+ * /api/jobs:
+ *   get:
+ *     summary: List all jobs for the current user
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of jobs
+ */
+router.get('/', getJobs);
 /**
  * @openapi
  * /api/jobs:
