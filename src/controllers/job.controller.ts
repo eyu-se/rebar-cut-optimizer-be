@@ -9,8 +9,22 @@ import { generateExcelReport } from '../services/export.service.js';
 export const getJobs = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req as any).user.userId;
+        const search = req.query.search as string;
+
+        let whereClause: any = { userId };
+
+        if (search) {
+            whereClause = {
+                ...whereClause,
+                OR: [
+                    { name: { contains: search } }, // SQLite doesn't natively support mode: 'insensitive' in simple contains without a specific PRAGMA or complex setup, but Prisma emulates it or we rely on default case-insensitivity of LIKE in SQLite, actually Prisma SQLite doesn't support mode: 'insensitive'. However, SQLite's LIKE is case-insensitive by default for ASCII! We will just use `contains`.
+                    { projectName: { contains: search } }
+                ]
+            };
+        }
+
         const jobs = await prisma.job.findMany({
-            where: { userId },
+            where: whereClause,
             orderBy: { createdAt: 'desc' },
         });
         res.json(jobs);
