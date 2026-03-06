@@ -304,3 +304,38 @@ export const exportJobExcel = async (req: Request, res: Response, next: NextFunc
         next(error);
     }
 };
+
+// Delete a job
+export const deleteJob = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const jobId = req.params.id as string;
+        const userId = (req as any).user.userId;
+
+        // Verify the job belongs to the user
+        const job = await prisma.job.findUnique({
+            where: { id: jobId }
+        });
+
+        if (!job) {
+            return res.status(404).json({ error: 'Job not found' });
+        }
+
+        if (job.userId !== userId) {
+            return res.status(403).json({ error: 'Unauthorized to delete this job' });
+        }
+
+        // Delete associated offcuts first
+        await prisma.offcut.deleteMany({
+            where: { sourceJobId: jobId }
+        });
+
+        // Delete the job (cascade handles requirements, stockBars, cutPieces)
+        await prisma.job.delete({
+            where: { id: jobId }
+        });
+
+        res.status(200).json({ message: 'Job deleted successfully' });
+    } catch (error) {
+        next(error);
+    }
+};

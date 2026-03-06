@@ -9,6 +9,7 @@ import {
     getJobPatterns,
     optimizeJob,
     exportJobExcel,
+    deleteJob,
 } from '../controllers/job.controller.js';
 
 import { authenticateJWT } from '../middleware/auth.middleware.js';
@@ -196,5 +197,28 @@ router.post('/:id/optimize', optimizeJob);
  */
 router.get('/:id/export/excel', exportJobExcel);
 
+/**
+ * @openapi
+ * /api/jobs/{id}:
+ *   delete:
+ *     summary: Delete a job and its associated data
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Job deleted successfully
+ *       404:
+ *         description: Job not found
+ *       403:
+ *         description: Unauthorized
+ */
+router.delete('/:id', deleteJob);
 
 export default router;
