@@ -6,6 +6,7 @@ import userRoutes from './routes/user.routes.js';
 import jobRoutes from './routes/job.routes.js';
 import offcutRoutes from './routes/offcut.routes.js';
 import reportRoutes from './routes/report.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './utils/swagger.js';
@@ -28,6 +29,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/offcuts', offcutRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Global Error Handler
 app.use(errorMiddleware);

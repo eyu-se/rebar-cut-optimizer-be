@@ -17,6 +17,19 @@ model User {
   
   jobs          Job[]
   accessLogs    AccessLog[]
+  settings      UserSettings?
+}
+
+model UserSettings {
+  id                     String   @id @default(uuid())
+  userId                 String   @unique
+  defaultStockLengthMm   Float    @default(12000)
+  defaultMinOffcutMm     Float    @default(500)
+  allowMixedStockLengths Boolean  @default(false)
+  scrapThresholdWarning  Float    @default(5)
+  updatedAt              DateTime @updatedAt
+
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AccessLog {
