@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
 import prisma from '../utils/prisma.js';
 
 export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
@@ -59,6 +60,48 @@ export const getMe = async (req: Request, res: Response, next: NextFunction) => 
             select: { id: true, email: true, role: true, createdAt: true },
         });
         res.json(user);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateUser = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userIdToUpdate = req.params.id as string;
+        const { email, password, role } = req.body;
+
+        const updateData: any = {};
+        if (email) updateData.email = email;
+        if (role) updateData.role = role;
+        if (password) {
+            updateData.passwordHash = await bcrypt.hash(password, 10);
+        }
+
+        const user = await prisma.user.update({
+            where: { id: userIdToUpdate },
+            data: updateData,
+            select: { id: true, email: true, role: true, createdAt: true },
+        });
+
+        res.json(user);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userIdToDelete = req.params.id as string;
+
+        if (userIdToDelete === (req as any).user.userId) {
+            return res.status(400).json({ error: "Cannot delete your own account." });
+        }
+
+        await prisma.user.delete({
+            where: { id: userIdToDelete },
+        });
+
+        res.status(204).send();
     } catch (error) {
         next(error);
     }

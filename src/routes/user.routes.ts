@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllUsers, updateRole, getAccessLogs, getMe } from '../controllers/user.controller.js';
+import { getAllUsers, updateRole, getAccessLogs, getMe, updateUser, deleteUser } from '../controllers/user.controller.js';
 
 import { authenticateJWT, authorizeRole } from '../middleware/auth.middleware.js';
 
@@ -91,5 +91,22 @@ router.put('/:id/role', authorizeRole(['ADMIN']), logAccess('UPDATE_USER_ROLE'),
  *         description: Forbidden
  */
 router.get('/logs', authorizeRole(['ADMIN']), logAccess('VIEW_ACCESS_LOGS'), getAccessLogs);
+
+/**
+ * @openapi
+ * /api/users/{id}:
+ *   put:
+ *     summary: Update a user (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *   delete:
+ *     summary: Delete a user (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.put('/:id', authorizeRole(['ADMIN']), logAccess('UPDATE_USER'), updateUser);
+router.delete('/:id', authorizeRole(['ADMIN']), logAccess('DELETE_USER'), deleteUser);
 
 export default router;
