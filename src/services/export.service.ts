@@ -60,45 +60,77 @@ export const generateExcelReport = (
     data.push([]); // blank row
 
     // ── Section 4: Grouped Cutting Patterns ───────────────────────────────
-    // Group bars by diameter, then group cut pieces by (lengthMm) to count qty
-    // Each CutPiece carries { lengthMm, requirement.location }
+    // Group identical stock bars based on their exact cutting pattern
+    // A bar's pattern is its sorted combination of (length, location, qty)
 
-    Array.from(diaMap.keys())
+    const diaMapBars = new Map<number, StockBar[]>();
+    stockBars.forEach(bar => {
+        if (!diaMapBars.has(bar.diameterMm)) {
+            diaMapBars.set(bar.diameterMm, []);
+        }
+        diaMapBars.get(bar.diameterMm)!.push(bar);
+    });
+
+    Array.from(diaMapBars.keys())
         .sort((a, b) => a - b)
         .forEach(dia => {
-            const barsForDia = stockBars.filter(b => b.diameterMm === dia);
+            const barsForDia = diaMapBars.get(dia)!;
 
-            // Aggregate cuts for this diameter: key = lengthMm, value = [ { location, qty } ]
-            const cutsByLength = new Map<number, Map<string, number>>();
+            // Group bars by their exact cutting signature
+            const patternGroups = new Map<string, { bars: StockBar[], cuts: any[] }>();
+
             barsForDia.forEach(bar => {
+                // Determine cuts for this single bar
+                const cutGroups = new Map<string, { lengthMm: number; loc: string; qty: number }>();
                 bar.cutPieces.forEach(piece => {
-                    const loc = piece.requirement?.location ?? '—';
-                    const locMap = cutsByLength.get(piece.lengthMm) ?? new Map<string, number>();
-                    locMap.set(loc, (locMap.get(loc) ?? 0) + 1);
-                    cutsByLength.set(piece.lengthMm, locMap);
+                    const loc = piece.requirement?.location || '—';
+                    const key = `${piece.lengthMm}_${loc}`;
+                    if (!cutGroups.has(key)) {
+                        cutGroups.set(key, { lengthMm: piece.lengthMm, loc, qty: 0 });
+                    }
+                    cutGroups.get(key)!.qty += 1;
                 });
+
+                // Sort cuts to create a consistent signature
+                const sortedCuts = Array.from(cutGroups.values()).sort((a, b) => {
+                    if (b.lengthMm !== a.lengthMm) return b.lengthMm - a.lengthMm;
+                    return a.loc.localeCompare(b.loc);
+                });
+
+                const signature = sortedCuts.map(c => `${c.lengthMm}_${c.loc}_${c.qty}`).join('|');
+
+                if (!patternGroups.has(signature)) {
+                    patternGroups.set(signature, { bars: [], cuts: sortedCuts });
+                }
+                patternGroups.get(signature)!.bars.push(bar);
             });
 
-            // Count total bars used and scrap for this dia group
-            const { bars: dBars, scrap: dScrap } = diaMap.get(dia)!;
+            // Iterate over the pattern groups for this diameter
+            Array.from(patternGroups.values())
+                .sort((a, b) => b.bars.length - a.bars.length) // Most frequent patterns first
+                .forEach(group => {
+                    const barsCount = group.bars.length;
+                    const totalScrap = group.bars.reduce((sum, bar) => sum + (bar.isScrap ? bar.remainingLengthMm : 0), 0);
 
-            // Title row for this diameter group
-            data.push([`Ø${dia}mm`, `Bars Used: ${dBars}`, `Total Scrap: ${Math.round(dScrap)} mm`]);
+                    // Pattern Header
+                    data.push([
+                        `${dia}mm`,
+                        `Bars used : ${barsCount}`,
+                        `Total Scrap : ${Math.round(totalScrap)} mm`
+                    ]);
 
-            // Column header for detail rows
-            data.push(['Cutting', 'Location']);
+                    // Pattern Columns
+                    data.push(['Cutting', 'Location']);
 
-            // One detail row per unique (length, location) combination
-            Array.from(cutsByLength.entries())
-                .sort((a, b) => b[0] - a[0]) // longest cuts first
-                .forEach(([lengthMm, locMap]) => {
-                    Array.from(locMap.entries()).forEach(([loc, qty]) => {
-                        const cutting = `${(lengthMm / 1000).toFixed(2)}m × ${qty}`;
-                        data.push([cutting, loc]);
+                    // Pattern Details
+                    group.cuts.forEach(cut => {
+                        const lengthM = cut.lengthMm / 1000;
+                        const lengthStr = Number.isInteger(lengthM) ? `${lengthM}m` : `${lengthM.toFixed(2)}m`;
+                        data.push([`${lengthStr} * ${cut.qty}`, cut.loc]);
                     });
-                });
 
-            data.push([]); // blank row after each diameter group
+                    data.push([]); // blank row after each pattern group
+                });
         });
 
     // ── Build Workbook ─────────────────────────────────────────────────────
