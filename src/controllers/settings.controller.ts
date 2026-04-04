@@ -39,14 +39,15 @@ export const updateSettings = async (req: Request, res: Response, next: NextFunc
         const userId = (req as any).user.userId;
         const { defaultStockLengthMm, defaultMinOffcutMm, allowMixedStockLengths, scrapThresholdWarning } = req.body;
 
+        const updateData: any = {};
+        if (defaultStockLengthMm !== undefined) updateData.defaultStockLengthMm = Number(defaultStockLengthMm);
+        if (defaultMinOffcutMm !== undefined) updateData.defaultMinOffcutMm = Number(defaultMinOffcutMm);
+        if (allowMixedStockLengths !== undefined) updateData.allowMixedStockLengths = Boolean(allowMixedStockLengths);
+        if (scrapThresholdWarning !== undefined) updateData.scrapThresholdWarning = Number(scrapThresholdWarning);
+
         const settings = await prisma.userSettings.upsert({
             where: { userId },
-            update: {
-                defaultStockLengthMm: defaultStockLengthMm !== undefined ? Number(defaultStockLengthMm) : undefined,
-                defaultMinOffcutMm: defaultMinOffcutMm !== undefined ? Number(defaultMinOffcutMm) : undefined,
-                allowMixedStockLengths: allowMixedStockLengths !== undefined ? Boolean(allowMixedStockLengths) : undefined,
-                scrapThresholdWarning: scrapThresholdWarning !== undefined ? Number(scrapThresholdWarning) : undefined,
-            },
+            update: updateData,
             create: {
                 userId,
                 defaultStockLengthMm: defaultStockLengthMm !== undefined ? Number(defaultStockLengthMm) : 12000,

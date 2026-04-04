@@ -1,0 +1,74 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/rebar-cut-optimizer-be:latest
+
+  deploy-to-vps:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            mkdir -p ~/rebar-cut-backend
+            cd ~/rebar-cut-backend
+            
+            cat << 'EOF' > docker-compose.yml
+            version: '3.8'
+            services:
+              backend:
+                image: ${{ env.REGISTRY }}/${{ github.repository_owner }}/rebar-cut-optimizer-be:latest
+                container_name: rebar_backend
+                restart: always
+                ports:
+                  - "5000:5000"
+                volumes:
+                  - sqlite_data:/app/data
+                environment:
+                  - NODE_ENV=production
+                  - PORT=5000
+                  - DATABASE_URL=file:/app/data/prod.db
+                  - JWT_SECRET=${JWT_SECRET:-changeme_in_production}
+            volumes:
+              sqlite_data:
+            EOF
+            
+            docker-compose pull
+            docker-compose up -d
+            docker image prune -f
