@@ -1,5 +1,5 @@
-import { processExcelFile } from './src/utils/excelProcessor.js';
-import { ffdAlgorithm } from './src/utils/optimizationEngine.js';
+import { processExcelFile } from './excelProcessor.js';
+import { ffdAlgorithm } from './optimizationEngine.js';
 
 const filePath = '/Users/eyu/Documents/Workstation/project_initiatives/with_bele/Rebar Cut Optimizer/rebar cut need - test.xlsx';
 
