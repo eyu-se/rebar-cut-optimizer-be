@@ -240,10 +240,15 @@ export const optimizeJob = async (req: Request, res: Response, next: NextFunctio
         const results = ffdAlgorithm(job.requirements, job.stockLengthMm, job.minOffcutToSaveMm);
 
         // 3. Persist results in a transaction
+        // Use a longer timeout and batch inserts to avoid the default 5s expiry
         await prisma.$transaction(async (tx) => {
             // Clear existing results and offcuts for this job
             await tx.stockBar.deleteMany({ where: { jobId: jobId as string } });
             await tx.offcut.deleteMany({ where: { sourceJobId: jobId as string } });
+
+            // Create all stock bars sequentially (need IDs for cut pieces)
+            const allCutPiecesData: { stockBarId: string; requirementId: string; lengthMm: number }[] = [];
+            const allOffcutsData: { diameterMm: number; lengthMm: number; sourceJobId: string; status: string }[] = [];
 
             for (const bar of results) {
                 const createdBar = await tx.stockBar.create({
@@ -256,26 +261,34 @@ export const optimizeJob = async (req: Request, res: Response, next: NextFunctio
                     },
                 });
 
-                // Create individual cut pieces
-                await tx.cutPiece.createMany({
-                    data: bar.pieces.map(p => ({
+                // Collect cut pieces for batch insert
+                for (const p of bar.pieces) {
+                    allCutPiecesData.push({
                         stockBarId: createdBar.id,
                         requirementId: p.requirementId,
                         lengthMm: p.lengthMm,
-                    })),
-                });
-
-                // If not scrap, save as reusable offcut
-                if (!bar.isScrap && bar.remainingLengthMm > 0) {
-                    await tx.offcut.create({
-                        data: {
-                            diameterMm: bar.diameterMm,
-                            lengthMm: bar.remainingLengthMm,
-                            sourceJobId: jobId as string,
-                            status: 'AVAILABLE'
-                        }
                     });
                 }
+
+                // Collect offcuts for batch insert
+                if (!bar.isScrap && bar.remainingLengthMm > 0) {
+                    allOffcutsData.push({
+                        diameterMm: bar.diameterMm,
+                        lengthMm: bar.remainingLengthMm,
+                        sourceJobId: jobId as string,
+                        status: 'AVAILABLE',
+                    });
+                }
+            }
+
+            // Single bulk insert for all cut pieces
+            if (allCutPiecesData.length > 0) {
+                await tx.cutPiece.createMany({ data: allCutPiecesData });
+            }
+
+            // Single bulk insert for all offcuts
+            if (allOffcutsData.length > 0) {
+                await tx.offcut.createMany({ data: allOffcutsData });
             }
 
             // Update job status
@@ -283,7 +296,7 @@ export const optimizeJob = async (req: Request, res: Response, next: NextFunctio
                 where: { id: jobId as string },
                 data: { status: 'COMPLETED' },
             });
-        });
+        }, { timeout: 30000 }); // 30s timeout to handle large jobs
 
         res.json({ message: 'Optimization completed successfully', barsCount: results.length });
     } catch (error) {
