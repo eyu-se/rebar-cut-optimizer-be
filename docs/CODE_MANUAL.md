@@ -228,3 +228,35 @@ Swagger documentation is available (when running locally) at `/api-docs`.
 - `npm run dev`: Runs the app in dev mode (`tsx watch`).
 - `npm run build`: Compiles TS to JS into the `dist` folder.
 - `npm start`: Runs the compiled output in Node.js.
+
+---
+
+## Future Roadmap & Pending Features
+
+This section outlines planned features and architectural improvements to guide future development.
+
+### 1. Excel Template Generation
+To improve the user experience during the file upload step, the backend should provide a dynamic template download.
+- **Requirement:** A new endpoint (e.g., `GET /api/jobs/template`) that generates a `.xlsx` file using the `xlsx` library.
+- **Details:** The file should include a header row (`Diameter (mm)`, `Length (mm)`, `Quantity`, `Location`) and 2-3 rows of example data to ensure users format their inputs correctly.
+
+### 2. Advanced Offcut Lifecycle Management
+While the engine currently identifies offcuts, the "closing of the loop" is still in progress:
+- **Offcut Reservation:** Ability to "tag" specific high-value offcuts for a known future project to prevent them from being used in general optimization.
+- **Project Attribution:** The exported reports and dashboards should explicitly show which stock bar came from which project's offcut pool.
+- **Utilization Dashboards:** A global view of "Offcut ROI" — tracking how many meters of rebar were saved over time by reusing pieces across different projects.
+
+### 3. Collaborative Offcut Sharing
+In larger organizations, rebar stock is often shared across teams.
+- **Requirement:** A permission-based sharing system where users can "Publish" their offcuts to a shared organizational pool.
+- **Implementation:** Adding an `orgId` or `teamId` to the `Offcut` model and updating the `optimizationEngine` to query available offcuts beyond the current user's scope.
+
+### 4. Multi-Stock Optimization (Planned)
+The current engine assumes a single `stockLengthMm` for the entire job.
+- **Improvement:** Update `ffdAlgorithm` to accept an array of available stock lengths (e.g., 12m, 10m, 9m).
+- **Goal:** The engine should choose the most efficient stock length for each bundle to further reduce scrap.
+
+### 5. Visual Cut Sheets
+Developers should consider adding a SVG/Canvas generation service to create visual "cut maps."
+- **Benefit:** Helping workshop technicians quickly see exactly where to cut each bar without reading coordinates from a table.
+- **Placement:** This could be integrated into the `getJobPatterns` endpoint or a separate `/api/jobs/:id/map` route.
